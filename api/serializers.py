@@ -9,12 +9,11 @@ class ProductSerializer(serializers.ModelSerializer):
 
 
 class ProductServiceRelationshipSerializer(serializers.ModelSerializer):
-    id = serializers.ReadOnlyField(source='product.id')
-    name = serializers.ReadOnlyField(source='product.name')
+    name = serializers.StringRelatedField(source='product.name')
 
     class Meta:
         model = ProductServiceRelationship
-        fields = ('id', 'name', 'quantity')
+        fields = ('product', 'name', 'quantity')
 
 
 class ServiceSerializer(serializers.ModelSerializer):
@@ -22,6 +21,18 @@ class ServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Service
         fields = ('id', 'harvest', 'name', 'initial_date', 'end_date', 'total_cost', 'product')
+    
+    def create(self, validated_data):
+        product_data = validated_data.pop('productservicerelationship_set')
+        service = Service.objects.create(**validated_data)
+        for product in product_data:
+            d=dict(product)
+            prodrel = ProductServiceRelationship.objects.create(service=service,
+                                                                product=d['product'],
+                                                                quantity=d['quantity'])
+            service.productservicerelationship_set.add(prodrel)
+        return service
+
 
 
 class HarvestSerializer(serializers.ModelSerializer):
